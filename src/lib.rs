@@ -18,7 +18,7 @@ use sp_std::{
 };
 
 pub mod bounties;
-pub use crate::bounties::{Bounties, Bounty};
+pub use crate::bounties::Bounties;
 
 #[cfg(test)]
 mod mock;
@@ -30,10 +30,16 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 }
+#[derive(Encode, Decode, Default)]
+ pub struct Bounty {
+    issuers: u128,
+
+}
 
 decl_storage!{
-    trait Store for Module<T: Trait> as Bounties {
+    trait Store for Module<T: Trait> as BountyPallet {
         TotalBounties get(fn total_bounties): u128 = 0;
+        BountiesMap: map hasher(blake2_128_concat) u128 => Bounty; 
         
     }
 
