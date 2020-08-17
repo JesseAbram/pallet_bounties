@@ -2,14 +2,13 @@
 
 use codec::{Decode, Encode, FullCodec};
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter,
     traits::{EnsureOrigin, Get, Currency},
     Hashable
 };
-// use sp-timestamp::;
 use frame_system::{self as system, ensure_signed, Event};
 use sp_runtime::{
-    traits::{Hash, Member},
+    traits::{Hash, Member, AtLeast32Bit, Scale},
     RuntimeDebug,
 };
 use sp_std::{
@@ -32,18 +31,17 @@ pub trait Trait: frame_system::Trait {
     
     type MaxIssuers: Get<u32>;
     type Currency: Currency<Self::AccountId>;
-
 }
 
 type AccountIdOf<T> = <T as system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
-type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>>;
+type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber>;
 
 #[derive(Encode, Decode, Default, Debug, PartialEq)]
- pub struct Bounty <AccountId, Balance>{
+ pub struct Bounty <AccountId, Balance, BlockNumber>{
     issuers: AccountId,
     Approvers: AccountId,
-    Deadline: u128,
+    Deadline: BlockNumber,
     Balance: Balance,
     HasPaidOut: bool,
 }
@@ -76,15 +74,8 @@ decl_error!{
 
 decl_module!{
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        // #[weight = 0]
-        // fn issue_bounty(origin) -> dispatch::DispatchResult {
-        //     Self::issue_bounty(origin);
-        //     Ok(())
-
-
-        // }
 		#[weight = 10_000]
-        pub fn issue_bounty(origin, amount: BalanceOf<T>,
+        pub fn issue_bounty(origin, amount: BalanceOf<T>, block_number: T::BlockNumber
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             let result = Self::slash_value(&who, &amount);
@@ -92,7 +83,7 @@ decl_module!{
                 result, 
                 Error::<T>::Slashing
             );
-            Self::issue(&who, &amount);
+            Self::issue(&who, &amount, &block_number);
             Ok(())
         }
     }
@@ -103,14 +94,14 @@ impl<T: Trait> Module<T> {
         <BountiesMap<T>>::get(id)
     }
 
-    fn issue(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {    
+    fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) -> dispatch::DispatchResult {    
             let id = TotalBounties::get();
             TotalBounties::mutate(|total| *total += 1);
             
             let new_bounty = Bounty {
                 issuers: who.clone(),
                 Approvers: who.clone(), 
-                Deadline: 0,
+                Deadline: *block_number,
                 Balance: *amount,
                 HasPaidOut: false
             };
