@@ -18,8 +18,8 @@ use sp_std::{
     vec::Vec,
 };
 
-pub mod bounties;
-pub use crate::bounties::Bounties;
+// pub mod bounties;
+// pub use crate::bounties::Bounties;
 
 #[cfg(test)]
 mod mock;
@@ -39,7 +39,7 @@ type AccountIdOf<T> = <T as system::Trait>::AccountId;
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type BountyInfoOf<T> = Bounty<AccountIdOf<T>>;
 
-#[derive(Encode, Decode, Default)]
+#[derive(Encode, Decode, Default, Debug, PartialEq)]
  pub struct Bounty <AccountId>{
     issuers: AccountId,
     Approvers: AccountId,
@@ -75,24 +75,55 @@ decl_storage!{
 
 decl_module!{
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        // #[weight = 0]
+        // fn issue_bounty(origin) -> dispatch::DispatchResult {
+        //     Self::issue_bounty(origin);
+        //     Ok(())
+
+
+        // }
         #[weight = 0]
-        fn issue_bounty(origin) -> dispatch::DispatchResult {
-            Self::issue_bounty(origin);
+        pub fn issue_bounty(origin) -> dispatch::DispatchResult {
+            let who = ensure_signed(origin)?;
+            let id = TotalBounties::get();
+            TotalBounties::mutate(|total| *total += 1);
+            
+            let new_bounty = Bounty {
+                issuers: who.clone(),
+                Approvers: who.clone(), 
+                Deadline: 0,
+                Balance: 0,
+                HasPaidOut: false
+            };
+    
+            BountiesMap::<T>::insert(id, new_bounty);
             Ok(())
-
-
         }
     }
 }
 
-impl<T: Trait> Bounties for Module<T> {
-    type AccountId = <T as system::Trait>::AccountId;
+impl<T: Trait> Module<T> {
 
-    fn total_bounties() -> u128 {
-        Self::total_bounties()
+    // fn total_bounties() -> u128 {
+    //     Self::total_bounties()
+    // }
+    pub fn bounties_list(id: u128) -> BountyInfoOf<T> {
+        BountiesMap::<T>::get(id)
     }
-    fn issue_bounty(who: T::AccountId) -> dispatch::DispatchResult {
-        Ok(())
-    }
+    // fn issue_bounty(who: T::AccountId) -> dispatch::DispatchResult {
+    //     let id = Self::total_bounties();
+    //     TotalBounties::mutate(|total| *total += 1);
+        
+    //     let new_bounty = Bounty {
+    //         issuers: who.clone(),
+    //         Approvers: who.clone(), 
+    //         Deadline: 0,
+    //         Balance: 0,
+    //         HasPaidOut: false
+    //     };
+
+    //     BountiesMap::<T>::insert(id, new_bounty);
+    //     Ok(())
+    // }
 
     }
