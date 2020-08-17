@@ -47,9 +47,12 @@ impl system::Trait for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
 }
-
+parameter_types! {
+    pub const MaxIssuers: u32 = 5;
+}
 impl Trait for Test {
     type Event = ();
+    type MaxIssuers = MaxIssuers;
 
 }
 
