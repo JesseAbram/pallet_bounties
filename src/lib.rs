@@ -36,22 +36,22 @@ pub trait Trait: frame_system::Trait {
 }
 
 type AccountIdOf<T> = <T as system::Trait>::AccountId;
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
-type BountyInfoOf<T> = Bounty<AccountIdOf<T>>;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<AccountIdOf<T>>>::Balance;
+type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>>;
 
 #[derive(Encode, Decode, Default, Debug, PartialEq)]
- pub struct Bounty <AccountId>{
+ pub struct Bounty <AccountId, Balance>{
     issuers: AccountId,
     Approvers: AccountId,
     Deadline: u128,
-    Balance: u128,
+    Balance: Balance,
     HasPaidOut: bool,
 }
 
 decl_storage!{
     trait Store for Module<T: Trait> as BountyPallet {
         TotalBounties get(fn total_bounties): u128 = 0;
-        BountiesMap: map hasher(blake2_128_concat) u128 => BountyInfoOf<T>; 
+        BountiesMap: map hasher(blake2_128_concat) u128 => Option<BountyInfoOf<T>>; 
     }
 
 }
@@ -65,13 +65,13 @@ decl_storage!{
 
 // }
 
-// decl_error!{
-//     pub enum Error for Module<T: Trait> {
+decl_error!{
+    pub enum Error for Module<T: Trait> {
+        BalanceZero
+    }
 
-//     }
 
-
-// }
+}
 
 decl_module!{
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
@@ -82,9 +82,23 @@ decl_module!{
 
 
         // }
-        #[weight = 0]
-        pub fn issue_bounty(origin) -> dispatch::DispatchResult {
+		#[weight = 10_000]
+        pub fn issue_bounty(origin, amount: <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
+        ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
+            Self::slash_value(&who, &amount);
+            Self::issue(&who, &amount);
+            Ok(())
+        }
+    }
+}
+
+impl<T: Trait> Module<T> {
+    pub fn bounties_list(id: u128) -> Option<BountyInfoOf<T>> {
+        <BountiesMap<T>>::get(id)
+    }
+
+    fn issue(who: &T::AccountId, amount: &<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance) -> dispatch::DispatchResult {    
             let id = TotalBounties::get();
             TotalBounties::mutate(|total| *total += 1);
             
@@ -92,38 +106,16 @@ decl_module!{
                 issuers: who.clone(),
                 Approvers: who.clone(), 
                 Deadline: 0,
-                Balance: 0,
+                Balance: *amount,
                 HasPaidOut: false
             };
     
-            BountiesMap::<T>::insert(id, new_bounty);
+            <BountiesMap<T>>::insert(id, new_bounty);
             Ok(())
-        }
+    }
+
+    fn slash_value(who: &T::AccountId, amount: &<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance) -> dispatch::DispatchResult {    
+        T::Currency::slash(&who, *amount);
+        Ok(())
     }
 }
-
-impl<T: Trait> Module<T> {
-
-    // fn total_bounties() -> u128 {
-    //     Self::total_bounties()
-    // }
-    pub fn bounties_list(id: u128) -> BountyInfoOf<T> {
-        BountiesMap::<T>::get(id)
-    }
-    // fn issue_bounty(who: T::AccountId) -> dispatch::DispatchResult {
-    //     let id = Self::total_bounties();
-    //     TotalBounties::mutate(|total| *total += 1);
-        
-    //     let new_bounty = Bounty {
-    //         issuers: who.clone(),
-    //         Approvers: who.clone(), 
-    //         Deadline: 0,
-    //         Balance: 0,
-    //         HasPaidOut: false
-    //     };
-
-    //     BountiesMap::<T>::insert(id, new_bounty);
-    //     Ok(())
-    // }
-
-    }
