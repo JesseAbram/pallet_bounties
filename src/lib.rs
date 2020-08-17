@@ -67,7 +67,8 @@ decl_storage!{
 
 decl_error!{
     pub enum Error for Module<T: Trait> {
-        BalanceZero
+        BalanceZero,
+        Slashing
     }
 
 
@@ -83,10 +84,14 @@ decl_module!{
 
         // }
 		#[weight = 10_000]
-        pub fn issue_bounty(origin, amount: <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
+        pub fn issue_bounty(origin, amount: BalanceOf<T>,
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
-            Self::slash_value(&who, &amount);
+            let result = Self::slash_value(&who, &amount);
+            ensure! (
+                result, 
+                Error::<T>::Slashing
+            );
             Self::issue(&who, &amount);
             Ok(())
         }
@@ -98,7 +103,7 @@ impl<T: Trait> Module<T> {
         <BountiesMap<T>>::get(id)
     }
 
-    fn issue(who: &T::AccountId, amount: &<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance) -> dispatch::DispatchResult {    
+    fn issue(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {    
             let id = TotalBounties::get();
             TotalBounties::mutate(|total| *total += 1);
             
@@ -114,8 +119,12 @@ impl<T: Trait> Module<T> {
             Ok(())
     }
 
-    fn slash_value(who: &T::AccountId, amount: &<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance) -> dispatch::DispatchResult {    
-        T::Currency::slash(&who, *amount);
-        Ok(())
+    fn slash_value(who: &T::AccountId, amount: &BalanceOf<T>) -> bool {    
+        if !T::Currency::can_slash(&who, *amount) {
+            false
+        } else {
+            T::Currency::slash(&who, *amount);
+            true
+        }
     }
 }
