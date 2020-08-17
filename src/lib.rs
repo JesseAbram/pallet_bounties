@@ -39,8 +39,7 @@ type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>
 
 #[derive(Encode, Decode, Default, Debug, PartialEq)]
  pub struct Bounty <AccountId, Balance, BlockNumber>{
-    issuers: AccountId,
-    Approvers: AccountId,
+    issuer: AccountId,
     Deadline: BlockNumber,
     Balance: Balance,
     HasPaidOut: bool,
@@ -86,7 +85,13 @@ decl_module!{
             Self::issue(&who, &amount, &block_number);
             Ok(())
         }
-    }
+        #[weight = 10_000]
+        fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
+            ensure_signed(origin)?;
+            Self::submission(id, &who);
+            Ok(())
+        }
+}
 }
 
 impl<T: Trait> Module<T> {
@@ -94,20 +99,26 @@ impl<T: Trait> Module<T> {
         <BountiesMap<T>>::get(id)
     }
 
-    fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) -> dispatch::DispatchResult {    
+    fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) {    
             let id = TotalBounties::get();
             TotalBounties::mutate(|total| *total += 1);
             
             let new_bounty = Bounty {
-                issuers: who.clone(),
-                Approvers: who.clone(), 
+                issuer: who.clone(),
                 Deadline: *block_number,
                 Balance: *amount,
                 HasPaidOut: false
             };
     
             <BountiesMap<T>>::insert(id, new_bounty);
-            Ok(())
+    }
+
+    fn submission(id: u128, who: &T::AccountId) {
+        // TODO, only owner, before deadline, payout claimer
+        // Remove unwrap handle error
+        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
+        target_bounty.HasPaidOut = true;
+        <BountiesMap<T>>::insert(id, target_bounty);
     }
 
     fn slash_value(who: &T::AccountId, amount: &BalanceOf<T>) -> bool {    
