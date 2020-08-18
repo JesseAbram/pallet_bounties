@@ -53,15 +53,13 @@ impl system::Trait for Test {
 
 }
 parameter_types! {
-    pub const MaxIssuers: u32 = 5;
     pub const ExistentialDeposit: u64 = 1;
 
 }
 impl Trait for Test {
     type Event = ();
-    type MaxIssuers = MaxIssuers;
     type Currency = Balances;
-
+    type NumberOfBounties = u128;
 }
 
 impl pallet_balances::Trait for Test {

@@ -2,12 +2,12 @@
 
 use codec::{Decode, Encode};
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter,
     traits::{EnsureOrigin, Get, Currency},
 };
 use frame_system::{self as system, ensure_signed, Event};
 use sp_runtime::{
-    traits::{Hash, Member, AtLeast32Bit, Scale, Zero},
+    traits::{Hash, Member, AtLeast32Bit, Scale, Zero, One},
     RuntimeDebug,
 };
 use sp_std::{
@@ -26,8 +26,7 @@ mod tests;
 
 pub trait Trait: frame_system::Trait {
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
-    
-    type MaxIssuers: Get<u32>;
+    type NumberOfBounties: Parameter + AtLeast32Bit + Default + Copy;
     type Currency: Currency<Self::AccountId>;
 }
 
@@ -46,8 +45,8 @@ type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>
 decl_storage!{
     trait Store for Module<T: Trait> as BountyPallet {
         // create type for bounty size
-        TotalBounties get(fn total_bounties): u128 = 0;
-        BountiesMap: map hasher(blake2_128_concat) u128 => Option<BountyInfoOf<T>>; 
+        TotalBounties get(fn total_bounties): T::NumberOfBounties = Zero::zero();
+        BountiesMap: map hasher(blake2_128_concat) T::NumberOfBounties => Option<BountyInfoOf<T>>; 
     }
 
 }
@@ -88,19 +87,19 @@ decl_module!{
             Ok(())
         }
         #[weight = 10_000]
-        pub fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
+        pub fn approve_submission(origin, id: T::NumberOfBounties, who: T::AccountId) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
             Self::submission(id, &who, &sender)?;
             Ok(())
         }
         #[weight = 10_000]
-        pub fn contribute(origin, id: u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
+        pub fn contribute(origin, id: T::NumberOfBounties, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             Self::contribute_imp(&who, &id, contribution)?;
             Ok(())
         }
         #[weight = 10_000]
-        pub fn reclaim_deposit(origin, id: u128) ->  dispatch::DispatchResult {
+        pub fn reclaim_deposit(origin, id: T::NumberOfBounties) ->  dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             Self::reclaim_deposit_imp(id, &who)?;
             Ok(())
@@ -110,13 +109,17 @@ decl_module!{
 
 
 impl<T: Trait> Module<T> {
-    pub fn bounties_list(id: u128) -> Option<BountyInfoOf<T>> {
+    pub fn bounties_list(id: T::NumberOfBounties) -> Option<BountyInfoOf<T>> {
         <BountiesMap<T>>::get(id)
     }
 
+    pub fn get_total_bounties() -> T::NumberOfBounties {
+        <TotalBounties<T>>::get()
+    }
+
     fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) ->  dispatch::DispatchResult {    
-            let id = TotalBounties::get();
-            TotalBounties::mutate(|total| *total += 1);
+            let id = Self::get_total_bounties();
+            <TotalBounties<T>>::mutate(|total| *total += One::one());
             
             let new_bounty = Bounty {
                 issuer: who.clone(),
@@ -129,7 +132,7 @@ impl<T: Trait> Module<T> {
             Ok(())
     }
 
-    fn submission(id: u128, who: &T::AccountId, sender: &T::AccountId) -> dispatch::DispatchResult {
+    fn submission(id: T::NumberOfBounties, who: &T::AccountId, sender: &T::AccountId) -> dispatch::DispatchResult {
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
         let current_block = <system::Module<T>>::block_number();
 
@@ -154,7 +157,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn contribute_imp(who: &T::AccountId, id: &u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
+    fn contribute_imp(who: &T::AccountId, id: &T::NumberOfBounties, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
         let current_block = <system::Module<T>>::block_number();
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(*id).ok_or(Error::<T>::InvalidBounty)?;
         ensure!(
@@ -166,7 +169,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn reclaim_deposit_imp(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {       
+    fn reclaim_deposit_imp(id: T::NumberOfBounties, who: &T::AccountId) -> dispatch::DispatchResult {       
         let current_block = <system::Module<T>>::block_number();
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
 
