@@ -52,6 +52,31 @@ new_test_ext().execute_with(|| {
     });
 }
 
+#[test]   
+fn contribute_to_bounty() {
+    new_test_ext().execute_with(|| {
+    hydrate_bounty();
+    assert_ok!(Bounties_Pallet::contribute(Origin::signed(1), 0, 0));
+    })
+}
+
+#[test]   
+fn fail_to_contribute_to_bounty_after_deadline() {
+    new_test_ext().execute_with(|| {
+    hydrate_bounty();
+    System::set_block_number(System::block_number() + 1);
+    assert_err!(Bounties_Pallet::contribute(Origin::signed(1), 0, 0), Error::<Test>::PassedDeadline);
+    })
+}
+
+#[test]   
+fn fail_to_contribute_to_bounty_not_enough_funds() {
+    new_test_ext().execute_with(|| {
+    hydrate_bounty();
+    assert_err!(Bounties_Pallet::contribute(Origin::signed(1), 0, 10), Error::<Test>::Slashing);
+    })
+}
+
 
 fn hydrate_bounty() {
     assert_ok!(Bounties_Pallet::issue_bounty(Origin::signed(1), 0, 0));

@@ -95,8 +95,13 @@ decl_module!{
             Self::contribute_imp(&who, &id, contribution)?;
             Ok(())
         }
+        #[weight = 10_000]
+        pub fn reclaim_deposit(origin) ->  dispatch::DispatchResult {
+            Ok(())
+        }
+    }
 }
-}
+
 
 impl<T: Trait> Module<T> {
     pub fn bounties_list(id: u128) -> Option<BountyInfoOf<T>> {
