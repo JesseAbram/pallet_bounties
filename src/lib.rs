@@ -118,11 +118,12 @@ impl<T: Trait> Module<T> {
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
 
         ensure!(
-            target_bounty.has_paid_out == false,
+            !target_bounty.has_paid_out,
             Error::<T>::AlreadyPaidOut
         );
 
         target_bounty.has_paid_out = true;
+        T::Currency::deposit_into_existing(who, target_bounty.balance)?;
         <BountiesMap<T>>::insert(id, target_bounty);
         Ok(())
     }
