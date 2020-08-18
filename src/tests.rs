@@ -52,10 +52,14 @@ new_test_ext().execute_with(|| {
     });
 }
 #[test]   
-fn approve_submission_fail_bounty_non_valid() {
+fn approve_submission_fail() {
 new_test_ext().execute_with(|| {
     hydrate_bounty();
         assert_err!(Bounties_Pallet::approve_submission(Origin::signed(1), 2, 1), Error::<Test>::InvalidBounty);
+        assert_err!(Bounties_Pallet::approve_submission(Origin::signed(2), 0, 1), Error::<Test>::OnlyIssuer);
+        System::set_block_number(System::block_number() + 1);
+        assert_err!(Bounties_Pallet::approve_submission(Origin::signed(1), 0, 1), Error::<Test>::PassedDeadline);
+
     });
 }
 

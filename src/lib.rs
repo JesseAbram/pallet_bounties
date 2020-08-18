@@ -45,6 +45,7 @@ type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>
 
 decl_storage!{
     trait Store for Module<T: Trait> as BountyPallet {
+        // create type for bounty size
         TotalBounties get(fn total_bounties): u128 = 0;
         BountiesMap: map hasher(blake2_128_concat) u128 => Option<BountyInfoOf<T>>; 
     }
@@ -88,8 +89,8 @@ decl_module!{
         }
         #[weight = 10_000]
         pub fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
-            ensure_signed(origin)?;
-            Self::submission(id, &who)?;
+            let sender = ensure_signed(origin)?;
+            Self::submission(id, &who, &sender)?;
             Ok(())
         }
         #[weight = 10_000]
@@ -128,13 +129,23 @@ impl<T: Trait> Module<T> {
             Ok(())
     }
 
-    fn submission(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
-        // TODO, only owner, before deadline, payout claimer
+    fn submission(id: u128, who: &T::AccountId, sender: &T::AccountId) -> dispatch::DispatchResult {
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
+        let current_block = <system::Module<T>>::block_number();
 
         ensure!(
             !target_bounty.has_paid_out,
             Error::<T>::AlreadyPaidOut
+        );
+
+        ensure!(
+            *sender == target_bounty.issuer,
+            Error::<T>::OnlyIssuer
+        );
+
+        ensure!(
+            current_block <= target_bounty.deadline, 
+            Error::<T>::PassedDeadline 
         );
 
         target_bounty.has_paid_out = true;
@@ -155,9 +166,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn reclaim_deposit_imp(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
-        //TODO only issuer
-       
+    fn reclaim_deposit_imp(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {       
         let current_block = <system::Module<T>>::block_number();
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
 
