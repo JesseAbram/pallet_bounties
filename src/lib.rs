@@ -90,7 +90,9 @@ decl_module!{
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             Self::slash_value(&who, &amount)?;
+            let bounty_id = Self::get_total_bounties();
             Self::issue(&who, &amount, &block_number)?;
+            Self::deposit_event(RawEvent::Issued(bounty_id, who, amount, block_number));
             Ok(())
         }
         #[weight = 10_000]

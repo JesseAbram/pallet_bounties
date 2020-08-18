@@ -1,5 +1,5 @@
 use crate::{Module, Trait};
-use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
+use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -7,6 +7,7 @@ use sp_runtime::{
     traits::{BlakeTwo256, IdentityLookup},
     Perbill,
 };
+
 
 impl_outer_origin! {
     pub enum Origin for Test {}
@@ -18,6 +19,19 @@ parameter_types! {
     pub const MaximumBlockWeight: Weight = 1024;
     pub const MaximumBlockLength: u32 = 2 * 1024;
     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+}
+
+mod BountyPallet {
+	pub use crate::Event;
+}
+
+
+impl_outer_event! {
+	pub enum TestEvent for Test {
+		BountyPallet<T>,
+        system<T>,
+        pallet_balances<T>,
+	}
 }
 
 pub type Balances = pallet_balances::Module<Test>;
@@ -35,7 +49,7 @@ impl system::Trait for Test {
     type AccountId = u64;
     type Lookup = IdentityLookup<Self::AccountId>;
     type Header = Header;
-    type Event = ();
+    type Event = TestEvent;
     type BlockHashCount = BlockHashCount;
     type MaximumBlockWeight = MaximumBlockWeight;
     type DbWeight = ();
@@ -57,14 +71,14 @@ parameter_types! {
 
 }
 impl Trait for Test {
-    type Event = ();
+    type Event = TestEvent;
     type Currency = Balances;
     type NumberOfBounties = u128;
 }
 
 impl pallet_balances::Trait for Test {
 	type Balance = u64;
-	type Event = ();
+	type Event = TestEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
