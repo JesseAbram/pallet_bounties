@@ -6,10 +6,10 @@ use frame_support::{
     traits::{EnsureOrigin, Get, Currency},
 };
 use frame_system::{self as system, ensure_signed, Event};
-// use sp_runtime::{
-//     traits::{Hash, Member, AtLeast32Bit, Scale},
-//     RuntimeDebug,
-// };
+use sp_runtime::{
+    traits::{Hash, Member, AtLeast32Bit, Scale, Zero},
+    RuntimeDebug,
+};
 use sp_std::{
     cmp::{Eq},
     fmt::Debug,
@@ -67,7 +67,8 @@ decl_error!{
         Slashing,
         AlreadyPaidOut,
         PassedDeadline,
-        InvalidBounty
+        InvalidBounty,
+        StillActive
     }
 
 }
@@ -81,7 +82,7 @@ decl_module!{
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
             Self::slash_value(&who, &amount)?;
-            Self::issue(&who, &amount, &block_number);
+            Self::issue(&who, &amount, &block_number)?;
             Ok(())
         }
         #[weight = 10_000]
@@ -97,7 +98,9 @@ decl_module!{
             Ok(())
         }
         #[weight = 10_000]
-        pub fn reclaim_deposit(origin) ->  dispatch::DispatchResult {
+        pub fn reclaim_deposit(origin, id: u128) ->  dispatch::DispatchResult {
+            let who = ensure_signed(origin)?;
+            Self::reclaim_deposit_imp(id, &who)?;
             Ok(())
         }
     }
@@ -109,7 +112,7 @@ impl<T: Trait> Module<T> {
         <BountiesMap<T>>::get(id)
     }
 
-    fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) {    
+    fn issue(who: &T::AccountId, amount: &BalanceOf<T>, block_number: &T::BlockNumber) ->  dispatch::DispatchResult {    
             let id = TotalBounties::get();
             TotalBounties::mutate(|total| *total += 1);
             
@@ -121,11 +124,11 @@ impl<T: Trait> Module<T> {
             };
     
             <BountiesMap<T>>::insert(id, new_bounty);
+            Ok(())
     }
 
     fn submission(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
         // TODO, only owner, before deadline, payout claimer
-        // TODO remove unwrap
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
 
         ensure!(
@@ -141,7 +144,6 @@ impl<T: Trait> Module<T> {
 
     fn contribute_imp(who: &T::AccountId, id: &u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
         let current_block = <system::Module<T>>::block_number();
-        // TODO remove unwrap
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(*id).ok_or(Error::<T>::InvalidBounty)?;
         ensure!(
             current_block <= target_bounty.deadline, 
@@ -149,6 +151,20 @@ impl<T: Trait> Module<T> {
         );
         Self::slash_value(who, &contribution)?;
         target_bounty.balance =  target_bounty.balance + contribution;
+        Ok(())
+    }
+
+    fn reclaim_deposit_imp(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
+        //TODO only issuer
+        let current_block = <system::Module<T>>::block_number();
+        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
+
+        ensure!(
+            current_block > target_bounty.deadline, 
+            Error::<T>::StillActive 
+        );
+        T::Currency::deposit_into_existing(who, target_bounty.balance)?;
+        target_bounty.balance = Zero::zero();
         Ok(())
     }
 

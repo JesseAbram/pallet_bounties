@@ -85,6 +85,17 @@ fn fail_to_contribute_to_bounty_not_enough_funds() {
     })
 }
 
+#[test]
+fn reclaim_deposit() {
+    new_test_ext().execute_with(|| {
+    hydrate_bounty();
+    assert_err!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 0), Error::<Test>::StillActive);
+    System::set_block_number(System::block_number() + 1);
+    assert_err!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 2), Error::<Test>::InvalidBounty);
+    assert_ok!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 0));
+})
+
+}
 
 fn hydrate_bounty() {
     assert_ok!(Bounties_Pallet::issue_bounty(Origin::signed(1), 0, 0));
