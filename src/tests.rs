@@ -51,6 +51,13 @@ new_test_ext().execute_with(|| {
 
     });
 }
+#[test]   
+fn approve_submission_fail_bounty_non_valid() {
+new_test_ext().execute_with(|| {
+    hydrate_bounty();
+        assert_err!(Bounties_Pallet::approve_submission(Origin::signed(1), 2, 1), Error::<Test>::InvalidBounty);
+    });
+}
 
 #[test]   
 fn contribute_to_bounty() {
@@ -66,6 +73,7 @@ fn fail_to_contribute_to_bounty_after_deadline() {
     hydrate_bounty();
     System::set_block_number(System::block_number() + 1);
     assert_err!(Bounties_Pallet::contribute(Origin::signed(1), 0, 0), Error::<Test>::PassedDeadline);
+    assert_err!(Bounties_Pallet::contribute(Origin::signed(1), 2, 0), Error::<Test>::InvalidBounty);
     })
 }
 

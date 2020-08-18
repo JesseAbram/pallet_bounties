@@ -66,7 +66,8 @@ decl_error!{
         BalanceZero,
         Slashing,
         AlreadyPaidOut,
-        PassedDeadline
+        PassedDeadline,
+        InvalidBounty
     }
 
 }
@@ -125,7 +126,7 @@ impl<T: Trait> Module<T> {
     fn submission(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
         // TODO, only owner, before deadline, payout claimer
         // TODO remove unwrap
-        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
+        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
 
         ensure!(
             !target_bounty.has_paid_out,
@@ -141,7 +142,7 @@ impl<T: Trait> Module<T> {
     fn contribute_imp(who: &T::AccountId, id: &u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
         let current_block = <system::Module<T>>::block_number();
         // TODO remove unwrap
-        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(*id).unwrap();
+        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(*id).ok_or(Error::<T>::InvalidBounty)?;
         ensure!(
             current_block <= target_bounty.deadline, 
             Error::<T>::PassedDeadline 
