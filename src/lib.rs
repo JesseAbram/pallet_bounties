@@ -68,7 +68,8 @@ decl_error!{
         AlreadyPaidOut,
         PassedDeadline,
         InvalidBounty,
-        StillActive
+        StillActive,
+        OnlyIssuer
     }
 
 }
@@ -156,6 +157,7 @@ impl<T: Trait> Module<T> {
 
     fn reclaim_deposit_imp(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
         //TODO only issuer
+       
         let current_block = <system::Module<T>>::block_number();
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).ok_or(Error::<T>::InvalidBounty)?;
 
@@ -163,6 +165,12 @@ impl<T: Trait> Module<T> {
             current_block > target_bounty.deadline, 
             Error::<T>::StillActive 
         );
+
+        ensure!(
+            *who == target_bounty.issuer,
+            Error::<T>::OnlyIssuer
+        );
+
         T::Currency::deposit_into_existing(who, target_bounty.balance)?;
         target_bounty.balance = Zero::zero();
         Ok(())

@@ -92,7 +92,9 @@ fn reclaim_deposit() {
     assert_err!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 0), Error::<Test>::StillActive);
     System::set_block_number(System::block_number() + 1);
     assert_err!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 2), Error::<Test>::InvalidBounty);
+    assert_err!(Bounties_Pallet::reclaim_deposit(Origin::signed(2), 0), Error::<Test>::OnlyIssuer);
     assert_ok!(Bounties_Pallet::reclaim_deposit(Origin::signed(1), 0));
+
 })
 
 }
