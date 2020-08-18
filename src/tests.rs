@@ -14,9 +14,9 @@ fn create_bounty() {
         let bounty_for_account = Bounties_Pallet::bounties_list(0);
         let mock_bounty = Bounty {
             issuer: 1, 
-            Deadline: 0, 
-            Balance: 0, 
-            HasPaidOut: false
+            deadline: 0, 
+            balance: 0, 
+            has_paid_out: false
         };
         
         assert_eq!(bounty_for_account, Some(mock_bounty));
@@ -40,9 +40,9 @@ new_test_ext().execute_with(|| {
         let bounty_for_account = Bounties_Pallet::bounties_list(0);
         let mock_bounty = Bounty {
             issuer: 1, 
-            Deadline: 0, 
-            Balance: 0, 
-            HasPaidOut: true
+            deadline: 0, 
+            balance: 0, 
+            has_paid_out: true
         };
         
         assert_eq!(bounty_for_account, Some(mock_bounty));

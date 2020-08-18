@@ -40,9 +40,9 @@ type BountyInfoOf<T> = Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>
 #[derive(Encode, Decode, Default, Debug, PartialEq)]
  pub struct Bounty <AccountId, Balance, BlockNumber>{
     issuer: AccountId,
-    Deadline: BlockNumber,
-    Balance: Balance,
-    HasPaidOut: bool,
+    deadline: BlockNumber,
+    balance: Balance,
+    has_paid_out: bool,
 }
 
 decl_storage!{
@@ -104,9 +104,9 @@ impl<T: Trait> Module<T> {
             
             let new_bounty = Bounty {
                 issuer: who.clone(),
-                Deadline: *block_number,
-                Balance: *amount,
-                HasPaidOut: false
+                deadline: *block_number,
+                balance: *amount,
+                has_paid_out: false
             };
     
             <BountiesMap<T>>::insert(id, new_bounty);
@@ -118,11 +118,11 @@ impl<T: Trait> Module<T> {
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
 
         ensure!(
-            target_bounty.HasPaidOut == false,
+            target_bounty.has_paid_out == false,
             Error::<T>::AlreadyPaidOut
         );
-        
-        target_bounty.HasPaidOut = true;
+
+        target_bounty.has_paid_out = true;
         <BountiesMap<T>>::insert(id, target_bounty);
         Ok(())
     }
