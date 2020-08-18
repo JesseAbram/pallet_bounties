@@ -1,20 +1,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::{Decode, Encode, FullCodec};
+use codec::{Decode, Encode};
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter,
+    decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
     traits::{EnsureOrigin, Get, Currency},
-    Hashable
 };
 use frame_system::{self as system, ensure_signed, Event};
-use sp_runtime::{
-    traits::{Hash, Member, AtLeast32Bit, Scale},
-    RuntimeDebug,
-};
+// use sp_runtime::{
+//     traits::{Hash, Member, AtLeast32Bit, Scale},
+//     RuntimeDebug,
+// };
 use sp_std::{
-    cmp::{Eq, Ordering},
+    cmp::{Eq},
     fmt::Debug,
-    vec::Vec,
 };
 
 // pub mod bounties;
@@ -67,7 +65,8 @@ decl_error!{
     pub enum Error for Module<T: Trait> {
         BalanceZero,
         Slashing,
-        AlreadyPaidOut
+        AlreadyPaidOut,
+        PassedDeadline
     }
 
 }
@@ -85,9 +84,15 @@ decl_module!{
             Ok(())
         }
         #[weight = 10_000]
-        fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
+        pub fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
             ensure_signed(origin)?;
             Self::submission(id, &who)?;
+            Ok(())
+        }
+        #[weight = 10_000]
+        pub fn contribute(origin, id: u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
+            let who = ensure_signed(origin)?;
+            Self::contribute_imp(&who, &id, contribution)?;
             Ok(())
         }
 }
@@ -114,7 +119,7 @@ impl<T: Trait> Module<T> {
 
     fn submission(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
         // TODO, only owner, before deadline, payout claimer
-        // Remove unwrap handle error
+        // TODO remove unwrap
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
 
         ensure!(
@@ -125,6 +130,19 @@ impl<T: Trait> Module<T> {
         target_bounty.has_paid_out = true;
         T::Currency::deposit_into_existing(who, target_bounty.balance)?;
         <BountiesMap<T>>::insert(id, target_bounty);
+        Ok(())
+    }
+
+    fn contribute_imp(who: &T::AccountId, id: &u128, contribution: BalanceOf<T>) -> dispatch::DispatchResult {
+        let current_block = <system::Module<T>>::block_number();
+        // TODO remove unwrap
+        let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(*id).unwrap();
+        ensure!(
+            current_block <= target_bounty.deadline, 
+            Error::<T>::PassedDeadline 
+        );
+        Self::slash_value(who, &contribution)?;
+        target_bounty.balance =  target_bounty.balance + contribution;
         Ok(())
     }
 
