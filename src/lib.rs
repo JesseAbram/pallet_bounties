@@ -5,7 +5,7 @@ use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, ensure, Parameter,
     traits::{EnsureOrigin, Get, Currency},
 };
-use frame_system::{self as system, ensure_signed, Event};
+use frame_system::{self as system, ensure_signed};
 use sp_runtime::{
     traits::{Hash, Member, AtLeast32Bit, Scale, Zero, One},
     RuntimeDebug,
@@ -51,16 +51,6 @@ decl_storage!{
 
 }
 
-// decl_event!{
-//     pub enum Event<T> where		
-//     <T as frame_system::Trait>::AccountId,
-//     <T as Trait>::Balance,
-//     <T as system::Trait>::BlockNumber>
-//     {
-//         Issued(AccountId, Balance, BlockNumber),
-//     }
-// }
-
 decl_error!{
     pub enum Error for Module<T: Trait> {
         BalanceZero,
@@ -73,6 +63,23 @@ decl_error!{
     }
 
 }
+
+decl_event! (
+    pub enum Event<T>
+    where
+    AccountId = <T as system::Trait>::AccountId,
+    Balance = BalanceOf<T>,
+    BlockNumber = <T as system::Trait>::BlockNumber,
+    BountiesId = <T as Trait>::NumberOfBounties,
+
+	{
+        Issued(BountiesId, AccountId, Balance, BlockNumber),
+        ApprovedSubmission(BountiesId, AccountId),
+        Contributed(BountiesId, Balance),
+        ReclaimedDeposit(BountiesId),
+		
+	}
+);
 
 decl_module!{
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
@@ -106,7 +113,6 @@ decl_module!{
         }
     }
 }
-
 
 impl<T: Trait> Module<T> {
     pub fn bounties_list(id: T::NumberOfBounties) -> Option<BountyInfoOf<T>> {
