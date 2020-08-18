@@ -54,41 +54,40 @@ decl_storage!{
 }
 
 // decl_event!{
-//     pub enum Event<T> where
+//     pub enum Event<T> where		
+//     <T as frame_system::Trait>::AccountId,
+//     <T as Trait>::Balance,
+//     <T as system::Trait>::BlockNumber>
 //     {
-
+//         Issued(AccountId, Balance, BlockNumber),
 //     }
-
-
 // }
 
 decl_error!{
     pub enum Error for Module<T: Trait> {
         BalanceZero,
-        Slashing
+        Slashing,
+        AlreadyPaidOut
     }
-
 
 }
 
 decl_module!{
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+        fn deposit_event() = default;
+
 		#[weight = 10_000]
         pub fn issue_bounty(origin, amount: BalanceOf<T>, block_number: T::BlockNumber
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
-            let result = Self::slash_value(&who, &amount);
-            ensure! (
-                result, 
-                Error::<T>::Slashing
-            );
+            Self::slash_value(&who, &amount)?;
             Self::issue(&who, &amount, &block_number);
             Ok(())
         }
         #[weight = 10_000]
         fn approve_submission(origin, id: u128, who: T::AccountId) -> dispatch::DispatchResult {
             ensure_signed(origin)?;
-            Self::submission(id, &who);
+            Self::submission(id, &who)?;
             Ok(())
         }
 }
@@ -113,20 +112,28 @@ impl<T: Trait> Module<T> {
             <BountiesMap<T>>::insert(id, new_bounty);
     }
 
-    fn submission(id: u128, who: &T::AccountId) {
+    fn submission(id: u128, who: &T::AccountId) -> dispatch::DispatchResult {
         // TODO, only owner, before deadline, payout claimer
         // Remove unwrap handle error
         let mut target_bounty: Bounty<AccountIdOf<T>, BalanceOf<T>, <T as system::Trait>::BlockNumber> = Self::bounties_list(id).unwrap();
+
+        ensure!(
+            target_bounty.HasPaidOut == false,
+            Error::<T>::AlreadyPaidOut
+        );
+        
         target_bounty.HasPaidOut = true;
         <BountiesMap<T>>::insert(id, target_bounty);
+        Ok(())
     }
 
-    fn slash_value(who: &T::AccountId, amount: &BalanceOf<T>) -> bool {    
-        if !T::Currency::can_slash(&who, *amount) {
-            false
-        } else {
+
+    fn slash_value(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {    
+        ensure! (
+            T::Currency::can_slash(&who, *amount), 
+            Error::<T>::Slashing
+        );
             T::Currency::slash(&who, *amount);
-            true
-        }
+            Ok(())
     }
 }

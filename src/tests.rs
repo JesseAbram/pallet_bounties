@@ -46,6 +46,8 @@ new_test_ext().execute_with(|| {
         };
         
         assert_eq!(bounty_for_account, Some(mock_bounty));
+        assert_err!(Bounties_Pallet::approve_submission(Origin::signed(1), 0, 1),   Error::<Test>::AlreadyPaidOut);
+
 
     });
 }
