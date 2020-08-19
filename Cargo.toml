@@ -1,8 +1,11 @@
 [package]
 name = "bounties"
+description = 'FRAME pallet for generalized bounties'
 version = "0.1.0"
 authors = ["JesseAbram <jesseabramowitz@hotmail.com>"]
 edition = "2018"
+license = 'MIT'
+repository = 'https://github.com/JesseAbram/pallet_bounties'
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

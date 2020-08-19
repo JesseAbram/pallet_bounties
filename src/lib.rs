@@ -3,13 +3,12 @@
 use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
-    traits::{Currency, EnsureOrigin, Get},
+    traits::{Currency},
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{
-    traits::{AtLeast32Bit, Hash, Member, One, Scale, Zero},
-    RuntimeDebug,
+    traits::{AtLeast32Bit, One, Zero},
 };
 use sp_std::{cmp::Eq, fmt::Debug};
 

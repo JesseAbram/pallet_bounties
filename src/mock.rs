@@ -73,7 +73,6 @@ impl Trait for Test {
     type Currency = Balances;
     type NumberOfBounties = u128;
 }
-
 impl pallet_balances::Trait for Test {
     type Balance = u64;
     type Event = TestEvent;
