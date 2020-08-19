@@ -1,5 +1,5 @@
 [package]
-name = "bounties"
+name = "bounties_market_pallet"
 description = 'FRAME pallet for generalized bounties'
 version = "0.1.0"
 authors = ["JesseAbram <jesseabramowitz@hotmail.com>"]
