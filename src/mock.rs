@@ -1,19 +1,19 @@
 use crate::{Module, Trait};
-use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
+use sp_io::TestExternalities;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
     Perbill,
 };
 
-
 impl_outer_origin! {
     pub enum Origin for Test {}
 }
 #[derive(Clone, Eq, PartialEq)]
-pub struct Test; 
+pub struct Test;
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
     pub const MaximumBlockWeight: Weight = 1024;
@@ -22,16 +22,15 @@ parameter_types! {
 }
 
 mod BountyPallet {
-	pub use crate::Event;
+    pub use crate::Event;
 }
 
-
 impl_outer_event! {
-	pub enum TestEvent for Test {
-		BountyPallet<T>,
+    pub enum TestEvent for Test {
+        BountyPallet<T>,
         system<T>,
         pallet_balances<T>,
-	}
+    }
 }
 
 pub type Balances = pallet_balances::Module<Test>;
@@ -64,7 +63,6 @@ impl system::Trait for Test {
     type OnKilledAccount = ();
     type SystemWeightInfo = ();
     type AccountData = pallet_balances::AccountData<u64>;
-
 }
 parameter_types! {
     pub const ExistentialDeposit: u64 = 1;
@@ -77,18 +75,23 @@ impl Trait for Test {
 }
 
 impl pallet_balances::Trait for Test {
-	type Balance = u64;
-	type Event = TestEvent;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
-	type WeightInfo = ();
-} 
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-    system::GenesisConfig::default()
-        .build_storage::<Test>()
-        .unwrap()
-        .into()
+    type Balance = u64;
+    type Event = TestEvent;
+    type DustRemoval = ();
+    type ExistentialDeposit = ExistentialDeposit;
+    type AccountStore = System;
+    type WeightInfo = ();
 }
 
+pub struct ExtBuilder;
+
+impl ExtBuilder {
+    pub fn build() -> TestExternalities {
+        let storage = system::GenesisConfig::default()
+            .build_storage::<Test>()
+            .unwrap();
+        let mut ext = TestExternalities::from(storage);
+        ext.execute_with(|| System::set_block_number(1));
+        ext
+    }
+}
