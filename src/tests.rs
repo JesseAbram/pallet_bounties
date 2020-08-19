@@ -176,15 +176,3 @@ fn hydrate_bounty() {
     assert_ok!(Bounties_Pallet::issue_bounty(Origin::signed(1), 0, 1));
     assert_eq!(Bounties_Pallet::total_bounties(), 1);
 }
-
-fn expect_event<E: Into<TestEvent>>(e: E) {
-    println!("{:?}", last_event());
-    // assert_eq!(last_event(), e.into());
-}
-
-fn last_event() -> TestEvent {
-    system::Module::<Test>::events()
-        .pop()
-        .map(|e| e.event)
-        .expect("Event expected")
-}
