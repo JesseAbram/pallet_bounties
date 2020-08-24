@@ -39,7 +39,7 @@ fn gracefully_fail_create_bounty_invalid_balance() {
         assert_eq!(Bounties_Pallet::total_bounties(), 0);
         assert_err!(
             Bounties_Pallet::issue_bounty(Origin::signed(1), 1000000, 1),
-            Error::<Test>::Slashing
+            Error::<Test>::TransferError
         );
         assert_eq!(Bounties_Pallet::total_bounties(), 0);
     });
@@ -136,7 +136,7 @@ fn fail_to_contribute_to_bounty_not_enough_funds() {
         hydrate_bounty();
         assert_err!(
             Bounties_Pallet::contribute(Origin::signed(1), 0, 10),
-            Error::<Test>::Slashing
+            Error::<Test>::TransferError
         );
     })
 }

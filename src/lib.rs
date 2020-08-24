@@ -3,12 +3,13 @@
 use codec::{Decode, Encode};
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
-    traits::{Currency},
+    traits::{Currency, ExistenceRequirement::AllowDeath},
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
 use sp_runtime::{
-    traits::{AtLeast32Bit, One, Zero},
+    traits::{AtLeast32Bit, One, Zero, AccountIdConversion},
+    ModuleId
 };
 use sp_std::{cmp::Eq, fmt::Debug};
 
@@ -47,7 +48,7 @@ decl_storage! {
 decl_error! {
     pub enum Error for Module<T: Trait> {
         BalanceZero,
-        Slashing,
+        TransferError,
         AlreadyPaidOut,
         PassedDeadline,
         InvalidBounty,
@@ -80,7 +81,6 @@ decl_module! {
         pub fn issue_bounty(origin, amount: BalanceOf<T>, block_number: T::BlockNumber
         ) -> dispatch::DispatchResult {
             let who = ensure_signed(origin)?;
-            Self::slash_value(&who, &amount)?;
             let bounty_id = Self::get_total_bounties();
             Self::issue(&who, &amount, &block_number)?;
             Self::deposit_event(RawEvent::Issued(bounty_id, who, amount, block_number));
@@ -124,9 +124,9 @@ impl<T: Trait> Module<T> {
         amount: &BalanceOf<T>,
         block_number: &T::BlockNumber,
     ) -> dispatch::DispatchResult {
+        Self::transfer_to_pallet(&who, &amount)?;
         let id = Self::get_total_bounties();
         <TotalBounties<T>>::mutate(|total| *total += One::one());
-
         let new_bounty = Bounty {
             issuer: who.clone(),
             deadline: *block_number,
@@ -160,7 +160,7 @@ impl<T: Trait> Module<T> {
         );
 
         target_bounty.has_paid_out = true;
-        T::Currency::deposit_into_existing(who, target_bounty.balance)?;
+        Self::transfer_from_pallet(&who, &target_bounty.balance)?;
         <BountiesMap<T>>::insert(id, target_bounty);
         Ok(())
     }
@@ -180,7 +180,7 @@ impl<T: Trait> Module<T> {
             current_block <= target_bounty.deadline,
             Error::<T>::PassedDeadline
         );
-        Self::slash_value(who, &contribution)?;
+        Self::transfer_to_pallet(who, &contribution)?;
         target_bounty.balance = target_bounty.balance + contribution;
         Ok(())
     }
@@ -203,14 +203,29 @@ impl<T: Trait> Module<T> {
 
         ensure!(*who == target_bounty.issuer, Error::<T>::OnlyIssuer);
 
-        T::Currency::deposit_into_existing(who, target_bounty.balance)?;
+        Self::transfer_from_pallet(&who, &target_bounty.balance)?;
         target_bounty.balance = Zero::zero();
         Ok(())
     }
 
-    fn slash_value(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {
-        ensure!(T::Currency::can_slash(&who, *amount), Error::<T>::Slashing);
-        T::Currency::slash(&who, *amount);
+    fn transfer_to_pallet(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {
+        ensure!(
+            T::Currency::free_balance(&who) >= *amount, 
+            Error::<T>::TransferError
+        );
+        T::Currency::transfer(&who, &Self::account_id(), *amount, AllowDeath)?;
         Ok(())
+    }
+    fn transfer_from_pallet(who: &T::AccountId, amount: &BalanceOf<T>) -> dispatch::DispatchResult {
+        ensure!(
+            T::Currency::free_balance(&who) >= *amount, 
+            Error::<T>::TransferError
+        );
+        T::Currency::transfer(&Self::account_id(), &who, *amount, AllowDeath)?;
+        Ok(())
+    }
+    fn account_id() -> T::AccountId{
+        const PALLET_ID: ModuleId = ModuleId(*b"Bounties");
+        PALLET_ID.into_account()
     }
 }
